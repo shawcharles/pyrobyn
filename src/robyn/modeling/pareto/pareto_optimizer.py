@@ -189,6 +189,18 @@ class ParetoOptimizer:
         min_candidates: int,
         calibrated: bool,
     ) -> int:
+        """
+        Determine the number of Pareto fronts to use.
+
+        Args:
+            result_hyp_param: DataFrame containing model results
+            pareto_fronts: Number of fronts to use or "auto"
+            min_candidates: Minimum number of candidates required
+            calibrated: Whether models are calibrated
+
+        Returns:
+            int: Number of Pareto fronts to use
+        """
         if self.model_outputs.hyper_fixed or len(result_hyp_param) == 1:
             self.logger.info(
                 "Using single Pareto front due to fixed hyperparameters or single model"
@@ -196,7 +208,23 @@ class ParetoOptimizer:
             return 1
 
         if pareto_fronts == "auto":
-            n_pareto = result_hyp_param["robynPareto"].notna().sum()
+            # Calculate initial Pareto front
+            nrmse = result_hyp_param["nrmse"].values
+            decomp_rssd = result_hyp_param["decomp.rssd"].values
+            
+            # Count non-dominated solutions
+            n_pareto = 0
+            for i in range(len(nrmse)):
+                dominated = False
+                for j in range(len(nrmse)):
+                    if i != j:
+                        if (nrmse[j] <= nrmse[i] and decomp_rssd[j] < decomp_rssd[i]) or \
+                           (nrmse[j] < nrmse[i] and decomp_rssd[j] <= decomp_rssd[i]):
+                            dominated = True
+                            break
+                if not dominated:
+                    n_pareto += 1
+                    
             self.logger.info(f"Number of Pareto-optimal solutions found: {n_pareto}")
 
             if (
@@ -209,30 +237,40 @@ class ParetoOptimizer:
                     "Increase iterations to get more model candidates or decrease min_candidates."
                 )
 
-            grouped_data = (
-                result_hyp_param[result_hyp_param["robynPareto"].notna()]
-                .groupby("robynPareto", as_index=False)
-                .agg(n=("sol_id", "nunique"))
-            )
-            grouped_data["n_cum"] = grouped_data["n"].cumsum()
-            auto_pareto = grouped_data[grouped_data["n_cum"] >= min_candidates]
-
-            if len(auto_pareto) == 0:
-                auto_pareto = grouped_data.iloc[[-1]]
-                self.logger.warning(
-                    f"Using all available Pareto fronts ({len(grouped_data)}) "
-                    f"with {int(auto_pareto['n_cum'].iloc[0])} total candidates"
-                )
-            else:
-                auto_pareto = auto_pareto.iloc[0]
-                self.logger.info(
-                    f"Selected {int(auto_pareto['robynPareto'])} Pareto-fronts "
-                    f"containing {int(auto_pareto['n_cum'])} candidates"
-                )
-
-            return int(auto_pareto["robynPareto"])
-
-        return int(pareto_fronts)
+            # Return number of fronts needed to get at least min_candidates solutions
+            total_solutions = 0
+            n_fronts = 0
+            remaining = list(range(len(nrmse)))
+            
+            while total_solutions < min_candidates and remaining:
+                n_fronts += 1
+                front = []
+                for i in remaining:
+                    dominated = False
+                    for j in remaining:
+                        if i != j:
+                            if (nrmse[j] <= nrmse[i] and decomp_rssd[j] < decomp_rssd[i]) or \
+                               (nrmse[j] < nrmse[i] and decomp_rssd[j] <= decomp_rssd[i]):
+                                dominated = True
+                                break
+                    if not dominated:
+                        front.append(i)
+                
+                total_solutions += len(front)
+                remaining = [i for i in remaining if i not in front]
+                
+                if not front:  # No more fronts can be found
+                    break
+            
+            return n_fronts
+        else:
+            try:
+                n_fronts = int(pareto_fronts)
+                if n_fronts <= 0:
+                    raise ValueError("Number of Pareto fronts must be positive")
+                return n_fronts
+            except ValueError as e:
+                raise ValueError(f"Invalid pareto_fronts value: {pareto_fronts}. {str(e)}")
 
     def prepare_pareto_data(
         self,
@@ -259,7 +297,7 @@ class ParetoOptimizer:
         # 1. Binding Pareto results
         aggregated_data["x_decomp_agg"] = pd.merge(
             aggregated_data["x_decomp_agg"],
-            result_hyp_param[["robynPareto", "sol_id"]],
+            result_hyp_param[["sol_id"]],
             on="sol_id",
             how="left",
         )
@@ -286,7 +324,7 @@ class ParetoOptimizer:
 
         decomp_spend_dist = pd.merge(
             decomp_spend_dist,
-            result_hyp_param[["robynPareto", "sol_id"]],
+            result_hyp_param[["sol_id"]],
             on="sol_id",
             how="left",
         )
@@ -299,19 +337,13 @@ class ParetoOptimizer:
 
         # Filtering data for selected Pareto fronts
         self.logger.info("Filtering data for selected Pareto fronts...")
-        decomp_spend_dist_pareto = decomp_spend_dist[
-            decomp_spend_dist["robynPareto"].isin(pareto_fronts_vec)
-        ]
+        decomp_spend_dist_pareto = decomp_spend_dist
         RobynLogger.log_df(self.logger, decomp_spend_dist_pareto)
 
-        result_hyp_param_pareto = result_hyp_param[
-            result_hyp_param["robynPareto"].isin(pareto_fronts_vec)
-        ]
+        result_hyp_param_pareto = result_hyp_param
         RobynLogger.log_df(self.logger, result_hyp_param_pareto)
 
-        x_decomp_agg_pareto = aggregated_data["x_decomp_agg"][
-            aggregated_data["x_decomp_agg"]["robynPareto"].isin(pareto_fronts_vec)
-        ]
+        x_decomp_agg_pareto = aggregated_data["x_decomp_agg"]
         RobynLogger.log_df(self.logger, x_decomp_agg_pareto)
 
         self.logger.info("Pareto data preparation completed")

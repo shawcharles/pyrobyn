@@ -137,10 +137,10 @@ class ParetoUtils:
         decomp_rssd = result_hyp_param["decomp.rssd"].values
         
         fronts = []
-        remaining = np.arange(len(nrmse))
+        remaining = list(range(len(nrmse)))
         
         for _ in range(n_fronts):
-            if len(remaining) == 0:
+            if not remaining:
                 break
                 
             front = []
@@ -156,7 +156,10 @@ class ParetoUtils:
                     front.append(i)
             
             fronts.extend(front)
-            remaining = np.setdiff1d(remaining, front)
+            remaining = [i for i in remaining if i not in front]
+            
+            if not front:  # No more fronts can be found
+                break
             
         return fronts
 
