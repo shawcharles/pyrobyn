@@ -14,7 +14,6 @@ import io
 
 logger = logging.getLogger(__name__)
 
-
 class BaseVisualizer(ABC):
     """
     Base class for all Robyn visualization components.
