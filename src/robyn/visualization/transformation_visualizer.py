@@ -247,7 +247,7 @@ class TransformationVisualizer(BaseVisualizer):
                         ha="left",
                         va="center",
                         fontweight="bold",
-                        fontsize=9,
+                        fontsize=8,
                         transform=ax.get_yaxis_transform(),
                     )
 
