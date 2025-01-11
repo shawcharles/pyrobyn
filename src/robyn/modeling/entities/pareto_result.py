@@ -1,3 +1,7 @@
+"""
+Contains the ParetoResult class which holds the results of Pareto optimization.
+"""
+
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd

@@ -1,97 +1,77 @@
 """
-Export Manager for Robyn MMM Results.
-
-This module handles the export of various model outputs to CSV files, including:
-- Pareto hyperparameters
-- Aggregated decomposition
-- Media transformation matrices
-- All decomposition matrices
+Manager class for exporting Robyn results.
 """
 
+import os
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 import pandas as pd
-from robyn.modeling.pareto.pareto_result import ParetoResult
+
+from robyn.modeling.entities import ParetoResult
 from robyn.data.entities.mmmdata import MMMData
 
 
 class ExportManager:
-    """Manages the export of model results to various file formats."""
+    """Manages the export of Robyn results to various formats."""
 
-    def __init__(self, output_dir: str):
+    def __init__(self, working_dir: str):
         """
-        Initialize the ExportManager.
+        Initialize ExportManager.
 
         Args:
-            output_dir: Directory where output files will be saved
+            working_dir: Directory to export files to
         """
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.working_dir = working_dir
+        os.makedirs(working_dir, exist_ok=True)
 
-    def export_pareto_results(
-        self,
-        pareto_result: ParetoResult,
-        mmm_data: MMMData,
-        prefix: Optional[str] = None
-    ) -> dict:
+    def export_pareto_results(self, pareto_result: ParetoResult) -> Dict[str, str]:
         """
-        Export all Pareto-related results to CSV files.
+        Export Pareto optimization results to CSV files.
 
         Args:
-            pareto_result: ParetoResult object containing model outputs
-            mmm_data: MMMData object containing model inputs
-            prefix: Optional prefix for output filenames
+            pareto_result: ParetoResult object containing results to export
 
         Returns:
-            dict: Dictionary containing paths to exported files
+            Dictionary mapping export type to file path
         """
-        prefix = prefix or "pareto"
-        exported_files = {}
+        export_paths = {}
 
-        # 1. Export hyperparameters
-        hyperparams_df = pareto_result.get_hyperparameters_df()
-        if hyperparams_df is not None:
-            filepath = self.output_dir / f"{prefix}_hyperparameters.csv"
-            hyperparams_df.to_csv(filepath, index=False)
-            exported_files['hyperparameters'] = filepath
+        # Export hyperparameters
+        if pareto_result.hyperparameters is not None:
+            path = os.path.join(self.working_dir, "pareto_hyperparameters.csv")
+            pareto_result.hyperparameters.to_csv(path, index=False)
+            export_paths["hyperparameters"] = path
 
-        # 2. Export aggregated decomposition
-        agg_decomp_df = pareto_result.get_aggregated_decomposition()
-        if agg_decomp_df is not None:
-            filepath = self.output_dir / f"{prefix}_aggregated.csv"
-            agg_decomp_df.to_csv(filepath, index=False)
-            exported_files['aggregated'] = filepath
+        # Export aggregated decomposition
+        if pareto_result.x_decomp_agg is not None:
+            path = os.path.join(self.working_dir, "pareto_aggregated.csv")
+            pareto_result.x_decomp_agg.to_csv(path, index=False)
+            export_paths["aggregated"] = path
 
-        # 3. Export media transformation matrix
-        media_transform_df = pareto_result.get_media_transform_matrix()
-        if media_transform_df is not None:
-            filepath = self.output_dir / f"{prefix}_media_transform_matrix.csv"
-            media_transform_df.to_csv(filepath, index=False)
-            exported_files['media_transform'] = filepath
+        # Export media transforms
+        if pareto_result.media_transforms is not None:
+            path = os.path.join(self.working_dir, "pareto_media_transform_matrix.csv")
+            pareto_result.media_transforms.to_csv(path, index=False)
+            export_paths["media_transforms"] = path
 
-        # 4. Export all decomposition matrix
-        all_decomp_df = pareto_result.get_all_decomposition_matrix()
-        if all_decomp_df is not None:
-            filepath = self.output_dir / f"{prefix}_alldecomp_matrix.csv"
-            all_decomp_df.to_csv(filepath, index=False)
-            exported_files['all_decomp'] = filepath
+        # Export all decomposition
+        if pareto_result.all_decomp is not None:
+            path = os.path.join(self.working_dir, "pareto_alldecomp_matrix.csv")
+            pareto_result.all_decomp.to_csv(path, index=False)
+            export_paths["all_decomp"] = path
 
-        return exported_files
+        return export_paths
 
-    def get_export_paths(self, prefix: Optional[str] = None) -> dict:
+    def get_export_paths(self) -> Dict[str, str]:
         """
-        Get the paths to exported files.
-
-        Args:
-            prefix: Optional prefix for filenames
+        Get paths to exported files.
 
         Returns:
-            dict: Dictionary containing paths to exported files
+            Dictionary mapping export type to file path
         """
-        prefix = prefix or "pareto"
         return {
-            'hyperparameters': self.output_dir / f"{prefix}_hyperparameters.csv",
-            'aggregated': self.output_dir / f"{prefix}_aggregated.csv",
-            'media_transform': self.output_dir / f"{prefix}_media_transform_matrix.csv",
-            'all_decomp': self.output_dir / f"{prefix}_alldecomp_matrix.csv"
+            "hyperparameters": os.path.join(self.working_dir, "pareto_hyperparameters.csv"),
+            "aggregated": os.path.join(self.working_dir, "pareto_aggregated.csv"),
+            "media_transforms": os.path.join(self.working_dir, "pareto_media_transform_matrix.csv"),
+            "all_decomp": os.path.join(self.working_dir, "pareto_alldecomp_matrix.csv"),
         }
