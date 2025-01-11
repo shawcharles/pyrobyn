@@ -6,7 +6,7 @@ import logging
 import pandas as pd
 from robyn.common.logger import RobynLogger
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
-from robyn.modeling.pareto.data import ParetoData
+from robyn.modeling.pareto import ParetoData
 
 
 class TrialValidator:

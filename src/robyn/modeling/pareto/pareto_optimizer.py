@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 from robyn.common.logger import RobynLogger
 from robyn.data.entities.holidays_data import HolidaysData
-
 from robyn.data.entities.hyperparameters import Hyperparameters
 from robyn.data.entities.mmmdata import MMMData
 from robyn.modeling.entities.pareto_result import ParetoResult
 from robyn.modeling.entities.modeloutputs import ModelOutputs
 from robyn.modeling.feature_engineering import FeaturizedMMMData
+from robyn.modeling.pareto import ParetoData
 from robyn.modeling.pareto.data_aggregator import DataAggregator
 from robyn.modeling.pareto.pareto_utils import ParetoUtils
 from robyn.modeling.pareto.plot_data_generator import PlotDataGenerator
@@ -22,14 +22,6 @@ from robyn.modeling.transformations.transformations import Transformation
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-
-
-@dataclass
-class ParetoData:
-    decomp_spend_dist: pd.DataFrame
-    result_hyp_param: pd.DataFrame
-    x_decomp_agg: pd.DataFrame
-    pareto_fronts: List[int]
 
 
 class ParetoOptimizer:
