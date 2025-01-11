@@ -131,7 +131,7 @@ class ParetoOptimizer:
 
         # Compute Pareto fronts
         self.logger.info("Computing Pareto fronts")
-        pareto_fronts = ParetoUtils.compute_pareto_fronts(
+        pareto_fronts = self.pareto_utils.compute_pareto_fronts(
             pareto_data.decomp_spend_dist,
             pareto_data.result_hyp_param,
             n_fronts=pareto_fronts,
@@ -140,7 +140,7 @@ class ParetoOptimizer:
 
         # Prepare Pareto data
         self.logger.info("Preparing Pareto data")
-        pareto_solutions = ParetoUtils.get_pareto_solutions(
+        pareto_solutions = self.pareto_utils.get_pareto_solutions(
             pareto_data.decomp_spend_dist,
             pareto_fronts,
         )
