@@ -6,6 +6,8 @@ import logging
 import pandas as pd
 from robyn.common.logger import RobynLogger
 from robyn.modeling.entities.modeloutputs import ModelOutputs, Trial
+from robyn.modeling.pareto.pareto_optimizer import ParetoData
+from robyn.modeling.pareto.data import ParetoData
 
 
 class TrialValidator:
@@ -155,3 +157,30 @@ class DataAggregator:
             decomp_list.append(decomp)
         
         return pd.concat(decomp_list, ignore_index=True)
+
+    def aggregate_data(self, calibrated: bool = False) -> ParetoData:
+        """
+        Aggregate model data and prepare it for Pareto optimization.
+
+        Args:
+            calibrated: Whether the models are calibrated
+
+        Returns:
+            ParetoData: Aggregated data ready for Pareto optimization
+        """
+        aggregated = self.aggregate_model_data(calibrated)
+        
+        # Extract decomp_spend_dist from trials
+        decomp_spend_dist_list = []
+        for trial in self.model_outputs.trials:
+            if hasattr(trial, 'decomp_spend_dist') and isinstance(trial.decomp_spend_dist, pd.DataFrame):
+                decomp_spend_dist_list.append(trial.decomp_spend_dist)
+        
+        decomp_spend_dist = pd.concat(decomp_spend_dist_list, ignore_index=True) if decomp_spend_dist_list else pd.DataFrame()
+        
+        return ParetoData(
+            decomp_spend_dist=decomp_spend_dist,
+            result_hyp_param=aggregated['result_hyp_param'],
+            x_decomp_agg=aggregated['x_decomp_agg'],
+            pareto_fronts=[]  # This will be populated later in the optimization process
+        )
