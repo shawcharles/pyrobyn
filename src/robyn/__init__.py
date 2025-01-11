@@ -20,7 +20,7 @@ logger.info("Logging is set up to console only.")
 
 # Import core classes
 from robyn.robyn import Robyn
-from robyn.robyn import ExportManager
+from robyn.export_manager import ExportManager
 from robyn.data.entities.mmmdata import MMMData
 from robyn.data.entities.holidays_data import HolidaysData
 from robyn.data.entities.hyperparameters import Hyperparameters, ChannelHyperparameters
