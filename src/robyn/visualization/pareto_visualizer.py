@@ -744,6 +744,8 @@ class ParetoVisualizer(BaseVisualizer):
             + factor_vars
             + prophet_vars_str
         )
+        print("Value Variables:", value_variables)  # Debugging print statement
+
         df_long = df.melt(
             id_vars=["ds"],
             value_vars=value_variables,
@@ -943,4 +945,3 @@ class ParetoVisualizer(BaseVisualizer):
         for name, fig in figures.items():
             print(f"Displaying plot: {name}")
             # fig.show()  # Uncomment when ready to display
- 
