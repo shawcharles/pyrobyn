@@ -722,54 +722,79 @@ class ParetoVisualizer(BaseVisualizer):
 
     def create_prophet_decomposition_plot(self) -> Optional[plt.Figure]:
         """Create Prophet Decomposition Plot."""
-        prophet_vars = (
-            [ProphetVariableType(var) for var in self.holiday_data.prophet_vars]
-            if self.holiday_data and self.holiday_data.prophet_vars
-            else []
-        )
-        factor_vars = self.mmm_data.mmmdata_spec.factor_vars if self.mmm_data else []
+        # Early return if required data is not available
+        if not all([self.holiday_data, self.mmm_data, self.featurized_mmm_data]):
+            return None
+
+        # Initialize lists with proper checks
+        prophet_vars = []
+        if self.holiday_data and self.holiday_data.prophet_vars:
+            prophet_vars = [ProphetVariableType(var) for var in self.holiday_data.prophet_vars]
+
+        factor_vars = []
+        if self.mmm_data and hasattr(self.mmm_data.mmmdata_spec, 'factor_vars'):
+            factor_vars = self.mmm_data.mmmdata_spec.factor_vars or []
+
+        # Early return if no variables to plot
         if not (prophet_vars or factor_vars):
             return None
-        df = self.featurized_mmm_data.dt_mod.copy()
-        prophet_vars_str = [variable.value for variable in prophet_vars]
-        prophet_vars_str.sort(reverse=True)
-        value_variables = (
-            [
-                (
-                    "dep_var"
-                    if hasattr(df, "dep_var")
-                    else self.mmm_data.mmmdata_spec.dep_var
-                )
-            ]
-            + factor_vars
-            + prophet_vars_str
-        )
-        print("Value Variables:", value_variables)  # Debugging print statement
 
-        df_long = df.melt(
-            id_vars=["ds"],
-            value_vars=value_variables,
-            var_name="variable",
-            value_name="value",
-        )
-        df_long["ds"] = pd.to_datetime(df_long["ds"])
-        plt.figure(figsize=(12, 3 * len(df_long["variable"].unique())))
-        prophet_decomp_plot = plt.figure(
-            figsize=(12, 3 * len(df_long["variable"].unique()))
-        )
-        gs = prophet_decomp_plot.add_gridspec(len(df_long["variable"].unique()), 1)
-        for i, var in enumerate(df_long["variable"].unique()):
-            ax = prophet_decomp_plot.add_subplot(gs[i, 0])
-            var_data = df_long[df_long["variable"] == var]
-            ax.plot(var_data["ds"], var_data["value"], color="steelblue")
-            ax.set_title(var)
-            ax.set_xlabel(None)
-            ax.set_ylabel(None)
-        plt.suptitle("Prophet decomposition")
-        plt.tight_layout()
-        fig = plt.gcf()
-        plt.close(fig)
-        return fig
+        try:
+            df = self.featurized_mmm_data.dt_mod.copy()
+            prophet_vars_str = [variable.value for variable in prophet_vars]
+            prophet_vars_str.sort(reverse=True)
+
+            # Initialize dep_var list with proper checks
+            dep_var_list = []
+            if hasattr(df, "dep_var"):
+                dep_var_list = ["dep_var"]
+            elif self.mmm_data and self.mmm_data.mmmdata_spec and self.mmm_data.mmmdata_spec.dep_var:
+                dep_var_list = [self.mmm_data.mmmdata_spec.dep_var]
+            
+            if not dep_var_list:  # If no valid dep_var found
+                return None
+
+            # Combine lists with proper checks
+            value_variables = dep_var_list + (factor_vars or []) + (prophet_vars_str or [])
+
+            # Debug print
+            print("Debug - Lists being combined:")
+            print(f"dep_var_list: {dep_var_list}")
+            print(f"factor_vars: {factor_vars}")
+            print(f"prophet_vars_str: {prophet_vars_str}")
+            print(f"Final value_variables: {value_variables}")
+
+            df_long = df.melt(
+                id_vars=["ds"],
+                value_vars=value_variables,
+                var_name="variable",
+                value_name="value",
+            )
+            df_long["ds"] = pd.to_datetime(df_long["ds"])
+            
+            # Create the plot
+            prophet_decomp_plot = plt.figure(
+                figsize=(12, 3 * len(df_long["variable"].unique()))
+            )
+            gs = prophet_decomp_plot.add_gridspec(len(df_long["variable"].unique()), 1)
+            
+            for i, var in enumerate(df_long["variable"].unique()):
+                ax = prophet_decomp_plot.add_subplot(gs[i, 0])
+                var_data = df_long[df_long["variable"] == var]
+                ax.plot(var_data["ds"], var_data["value"], color="steelblue")
+                ax.set_title(var)
+                ax.set_xlabel(None)
+                ax.set_ylabel(None)
+                
+            plt.suptitle("Prophet decomposition")
+            plt.tight_layout()
+            fig = plt.gcf()
+            plt.close(fig)
+            return fig
+            
+        except Exception as e:
+            print(f"Error in create_prophet_decomposition_plot: {str(e)}")
+            return None
 
     def create_hyperparameter_sampling_distribution(self) -> Optional[plt.Figure]:
         """Create Hyperparameter Sampling Distribution Plot."""
