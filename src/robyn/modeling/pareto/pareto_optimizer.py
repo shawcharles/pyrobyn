@@ -211,10 +211,32 @@ class ParetoOptimizer:
             raise ValueError(
                 "No valid solutions found. This could mean that no models were trained successfully."
             )
+            
+        # Log available columns for debugging
+        self.logger.debug("Available columns in result_hyp_param: %s", result_hyp_param.columns.tolist())
         
-        # Get NRMSE and DECOMP.RSSD values
-        nrmse = result_hyp_param["NRMSE"].values
-        decomp_rssd = result_hyp_param["DECOMP.RSSD"].values
+        # Get NRMSE and DECOMP.RSSD values (try different possible column names)
+        try:
+            nrmse = result_hyp_param["NRMSE"].values
+        except KeyError:
+            try:
+                nrmse = result_hyp_param["nrmse"].values
+            except KeyError:
+                raise KeyError(
+                    "Could not find NRMSE column in result_hyp_param. "
+                    f"Available columns are: {result_hyp_param.columns.tolist()}"
+                )
+                
+        try:
+            decomp_rssd = result_hyp_param["DECOMP.RSSD"].values
+        except KeyError:
+            try:
+                decomp_rssd = result_hyp_param["decomp.rssd"].values
+            except KeyError:
+                raise KeyError(
+                    "Could not find DECOMP.RSSD column in result_hyp_param. "
+                    f"Available columns are: {result_hyp_param.columns.tolist()}"
+                )
         
         # Compute Pareto fronts
         pareto_indices = self.pareto_utils.compute_pareto_fronts(
