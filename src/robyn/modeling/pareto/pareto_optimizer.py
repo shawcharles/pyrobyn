@@ -161,7 +161,7 @@ class ParetoOptimizer:
 
         # Prepare hyperparameters dataframe
         hyperparameters_df = pareto_data.result_hyp_param[
-            pareto_data.result_hyp_param['solID'].isin(pareto_solutions)
+            pareto_data.result_hyp_param['sol_id'].isin(pareto_solutions)
         ].copy()
 
         # Prepare media transforms dataframe

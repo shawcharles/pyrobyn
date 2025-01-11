@@ -163,6 +163,27 @@ class ParetoUtils:
             
         return fronts
 
+    @staticmethod
+    def get_pareto_solutions(
+        decomp_spend_dist: pd.DataFrame,
+        pareto_front_indices: List[int],
+    ) -> List[str]:
+        """
+        Get the solution IDs for the Pareto-optimal solutions.
+
+        Args:
+            decomp_spend_dist: DataFrame containing decomposition and spending distribution
+            pareto_front_indices: List of indices representing Pareto front solutions
+
+        Returns:
+            List of solution IDs for Pareto-optimal solutions
+        """
+        # Get unique solution IDs from the decomp_spend_dist DataFrame
+        solution_ids = decomp_spend_dist['sol_id'].unique()
+        
+        # Return solution IDs for the Pareto front indices
+        return [solution_ids[i] for i in pareto_front_indices]
+
     def process_pareto_clustered_results(
         self,
         pareto_results: ParetoResult,
