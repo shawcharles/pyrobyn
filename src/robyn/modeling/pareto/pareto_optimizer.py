@@ -98,7 +98,7 @@ class ParetoOptimizer:
 
     def optimize(
         self,
-        pareto_fronts: str = "auto",
+        pareto_fronts: int = 3,
         min_candidates: int = 100,
         calibration_constraint: float = 0.1,
         calibrated: bool = False,
@@ -107,7 +107,7 @@ class ParetoOptimizer:
         Perform Pareto optimization.
 
         Args:
-            pareto_fronts: Number of Pareto fronts to consider or "auto"
+            pareto_fronts: Number of Pareto fronts to consider
             min_candidates: Minimum number of candidates to consider
             calibration_constraint: Constraint for calibration
             calibrated: Whether models are calibrated
@@ -122,7 +122,7 @@ class ParetoOptimizer:
         pareto_data = self.data_aggregator.aggregate_data()
 
         # Determine number of Pareto fronts
-        n_fronts = self._determine_pareto_fronts(
+        pareto_indices = self._determine_pareto_fronts(
             pareto_data.result_hyp_param,
             pareto_fronts,
             min_candidates,
@@ -134,7 +134,7 @@ class ParetoOptimizer:
         pareto_fronts = ParetoUtils.compute_pareto_fronts(
             pareto_data.decomp_spend_dist,
             pareto_data.result_hyp_param,
-            n_fronts=n_fronts,
+            n_fronts=pareto_fronts,
         )
         self.logger.info("Pareto front computation completed")
 
@@ -185,106 +185,69 @@ class ParetoOptimizer:
     def _determine_pareto_fronts(
         self,
         result_hyp_param: pd.DataFrame,
-        pareto_fronts: str,
-        min_candidates: int,
-        calibrated: bool,
-    ) -> int:
+        pareto_fronts: int = 3,
+        min_candidates: int = 100,
+        calibrated: bool = False,
+    ) -> List[int]:
         """
-        Determine the number of Pareto fronts to use.
-
+        Determine Pareto fronts based on NRMSE and DECOMP.RSSD values.
+        
         Args:
             result_hyp_param: DataFrame containing model results
-            pareto_fronts: Number of fronts to use or "auto"
+            pareto_fronts: Number of Pareto fronts to compute
             min_candidates: Minimum number of candidates required
-            calibrated: Whether models are calibrated
-
+            calibrated: Whether to use calibrated results
+            
         Returns:
-            int: Number of Pareto fronts to use
+            List of indices representing solutions in Pareto fronts
         """
-        if self.model_outputs.hyper_fixed or len(result_hyp_param) == 1:
-            self.logger.info(
-                "Using single Pareto front due to fixed hyperparameters or single model"
+        # Get available trial IDs
+        available_trial_ids = {t.sol_id for t in self.model_outputs.trials}
+        
+        # Filter result_hyp_param to only include rows with valid trial IDs
+        result_hyp_param = result_hyp_param[result_hyp_param['sol_id'].isin(available_trial_ids)]
+        
+        if result_hyp_param.empty:
+            raise ValueError(
+                "No valid solutions found. This could mean that no models were trained successfully."
             )
-            return 1
-
-        if pareto_fronts == "auto":
-            # Calculate initial Pareto front
-            nrmse = result_hyp_param["nrmse"].values
-            decomp_rssd = result_hyp_param["decomp.rssd"].values
-            
-            # Count non-dominated solutions
-            n_pareto = 0
-            for i in range(len(nrmse)):
-                dominated = False
-                for j in range(len(nrmse)):
-                    if i != j:
-                        if (nrmse[j] <= nrmse[i] and decomp_rssd[j] < decomp_rssd[i]) or \
-                           (nrmse[j] < nrmse[i] and decomp_rssd[j] <= decomp_rssd[i]):
-                            dominated = True
-                            break
-                if not dominated:
-                    n_pareto += 1
-                    
-            self.logger.info(f"Number of Pareto-optimal solutions found: {n_pareto}")
-
-            if (
-                n_pareto <= min_candidates
-                and len(result_hyp_param) > 1
-                and not calibrated
-            ):
-                raise ValueError(
-                    f"Less than {min_candidates} candidates in pareto fronts. "
-                    "Increase iterations to get more model candidates or decrease min_candidates."
-                )
-
-            # Return number of fronts needed to get at least min_candidates solutions
-            total_solutions = 0
-            n_fronts = 0
-            remaining = list(range(len(nrmse)))
-            
-            while total_solutions < min_candidates and remaining:
-                n_fronts += 1
-                front = []
-                for i in remaining:
-                    dominated = False
-                    for j in remaining:
-                        if i != j:
-                            if (nrmse[j] <= nrmse[i] and decomp_rssd[j] < decomp_rssd[i]) or \
-                               (nrmse[j] < nrmse[i] and decomp_rssd[j] <= decomp_rssd[i]):
-                                dominated = True
-                                break
-                    if not dominated:
-                        front.append(i)
-                
-                total_solutions += len(front)
-                remaining = [i for i in remaining if i not in front]
-                
-                if not front:  # No more fronts can be found
-                    break
-            
-            return n_fronts
-        else:
-            try:
-                n_fronts = int(pareto_fronts)
-                if n_fronts <= 0:
-                    raise ValueError("Number of Pareto fronts must be positive")
-                return n_fronts
-            except ValueError as e:
-                raise ValueError(f"Invalid pareto_fronts value: {pareto_fronts}. {str(e)}")
+        
+        # Get NRMSE and DECOMP.RSSD values
+        nrmse = result_hyp_param["NRMSE"].values
+        decomp_rssd = result_hyp_param["DECOMP.RSSD"].values
+        
+        # Compute Pareto fronts
+        pareto_indices = self.pareto_utils.compute_pareto_fronts(
+            nrmse=nrmse,
+            decomp_rssd=decomp_rssd,
+            n_fronts=pareto_fronts,
+        )
+        
+        # Check if we have enough candidates
+        if (
+            len(pareto_indices) < min_candidates
+            and not calibrated
+        ):
+            raise ValueError(
+                f"Less than {min_candidates} candidates in pareto fronts. "
+                "Increase iterations to get more model candidates or decrease min_candidates."
+            )
+        
+        return pareto_indices
 
     def prepare_pareto_data(
         self,
         aggregated_data: Dict[str, pd.DataFrame],
-        pareto_fronts: str,
-        min_candidates: int,
-        calibrated: bool,
+        pareto_fronts: int = 3,
+        min_candidates: int = 100,
+        calibrated: bool = False,
     ) -> ParetoData:
         """
         Prepare Pareto optimization data with memory-efficient processing.
 
         Args:
             aggregated_data: Dictionary containing model results
-            pareto_fronts: Number of Pareto fronts to consider or "auto"
+            pareto_fronts: Number of Pareto fronts to consider
             min_candidates: Minimum number of candidates to consider
             calibrated: Whether models are calibrated
 
@@ -329,11 +292,10 @@ class ParetoOptimizer:
             how="left",
         )
 
-        pareto_fronts = self._determine_pareto_fronts(
+        pareto_indices = self._determine_pareto_fronts(
             result_hyp_param, pareto_fronts, min_candidates, calibrated
         )
-        pareto_fronts_vec = list(range(1, pareto_fronts + 1))
-        self.logger.info(f"Selected Pareto fronts: {pareto_fronts+1}")
+        self.logger.info(f"Selected Pareto fronts: {len(pareto_indices)}")
 
         # Filtering data for selected Pareto fronts
         self.logger.info("Filtering data for selected Pareto fronts...")
@@ -351,14 +313,14 @@ class ParetoOptimizer:
             decomp_spend_dist=decomp_spend_dist_pareto,
             result_hyp_param=result_hyp_param_pareto,
             x_decomp_agg=x_decomp_agg_pareto,
-            pareto_fronts=pareto_fronts_vec,
+            pareto_fronts=pareto_indices,
         )
 
     def _compute_pareto_fronts(
         self,
         aggregated_data: Dict[str, pd.DataFrame],
-        pareto_fronts: str,
-        calibration_constraint: float,
+        pareto_fronts: int = 3,
+        calibration_constraint: float = 0.1,
     ) -> pd.DataFrame:
         """
         Calculate Pareto fronts from the aggregated model data.
@@ -368,7 +330,7 @@ class ParetoOptimizer:
 
         Args:
             aggregated_data: Dictionary containing aggregated model results
-            pareto_fronts: Number of Pareto fronts to compute or "auto"
+            pareto_fronts: Number of Pareto fronts to compute
             calibration_constraint: Constraint for calibration
 
         Returns:
@@ -454,7 +416,7 @@ class ParetoOptimizer:
 
     @staticmethod
     def _pareto_fronts(
-        resultHypParamPareto: pd.DataFrame, pareto_fronts: str
+        resultHypParamPareto: pd.DataFrame, pareto_fronts: int
     ) -> pd.DataFrame:
         """
         Calculate Pareto fronts from the aggregated model data.
@@ -465,7 +427,7 @@ class ParetoOptimizer:
         Args:
             resultHypParamPareto (pd.DataFrame): DataFrame containing model results,
                                                 including 'nrmse' and 'decomp.rssd' columns.
-            pareto_fronts (Union[str, int]): Number of Pareto fronts to calculate or "auto".
+            pareto_fronts (int): Number of Pareto fronts to calculate.
         """
         # Extract vectors like in R
         nrmse = resultHypParamPareto["nrmse"].values
@@ -488,11 +450,7 @@ class ParetoOptimizer:
         i = 1
 
         # Convert pareto_fronts to match R's logic
-        max_fronts = (
-            float("inf")
-            if isinstance(pareto_fronts, str) and "auto" in pareto_fronts
-            else pareto_fronts
-        )
+        max_fronts = pareto_fronts
 
         # Main loop matching R's while condition
         while len(sorted_data) >= 1 and i <= max_fronts:

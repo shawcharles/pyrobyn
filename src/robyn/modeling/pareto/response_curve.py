@@ -794,12 +794,26 @@ class ResponseCurveCalculator:
         """
         self.logger.info("Calculating response curves for %d solutions", len(pareto_solutions))
         
+        # Get available trial IDs
+        available_trial_ids = {t.sol_id for t in self.model_outputs.trials}
+        
+        # Filter solutions to only those that have corresponding trials
+        valid_solutions = [sol_id for sol_id in pareto_solutions if sol_id in available_trial_ids]
+        
+        if not valid_solutions:
+            raise ValueError(
+                "No valid solutions found. This could mean that no models were trained successfully "
+                "or that the solution IDs don't match with the trained models."
+            )
+        
+        self.logger.info("Found %d valid solutions with trials", len(valid_solutions))
+        
         # Initialize containers for results
         x_decomp_vec_collect = {}
         caov_pct_list = []
         
         # Process each solution
-        for sol_id in pareto_solutions:
+        for sol_id in valid_solutions:
             # Get the trial for this solution
             trial = next(t for t in self.model_outputs.trials if t.sol_id == sol_id)
             
