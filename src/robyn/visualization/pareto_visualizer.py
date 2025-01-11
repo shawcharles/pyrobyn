@@ -843,7 +843,7 @@ class ParetoVisualizer(BaseVisualizer):
             f"Sample distribution, iterations = "
             f"{self.model_outputs.iterations} x {len(self.model_outputs.trials)} trial"
         )
-        g.figure.text(0.5, 0.98, subtitle_text, ha="center", fontsize=10)
+        g.figure.text(0.5, 0.98, subtitle_text, ha="center", fontsize=8)
         plt.subplots_adjust(top=0.9)
         plt.tight_layout()
         fig = plt.gcf()
