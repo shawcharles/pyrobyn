@@ -137,3 +137,21 @@ class DataAggregator:
                 x_decomp_agg = pd.merge(
                     x_decomp_agg, bootstrap, left_on="rn", right_on="variable"
                 )
+
+    def get_all_decomposition_matrix(self, solution_ids: List[str]) -> pd.DataFrame:
+        """
+        Get all decomposition vectors for specified solutions.
+
+        Args:
+            solution_ids: List of solution IDs to get decomposition for
+
+        Returns:
+            DataFrame containing all decomposition vectors
+        """
+        decomp_list = []
+        for sol_id in solution_ids:
+            decomp = self._get_decomposition_vector(sol_id)
+            decomp['solID'] = sol_id
+            decomp_list.append(decomp)
+        
+        return pd.concat(decomp_list, ignore_index=True)

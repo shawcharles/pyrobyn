@@ -327,3 +327,24 @@ class Transformation:
         )
         logger.debug("Completed all transformations: %s", result)
         return result
+
+    def get_media_transforms(self, solution_ids: List[str]) -> pd.DataFrame:
+        """
+        Get media transformation vectors for specified solutions.
+
+        Args:
+            solution_ids: List of solution IDs to get transforms for
+
+        Returns:
+            DataFrame containing media transformation vectors
+        """
+        transforms_list = []
+        for sol_id in solution_ids:
+            # Get media variables
+            for media_var in self.mmm_data.mmmdata_spec.paid_media_vars:
+                transforms = self._get_media_transform_vector(sol_id, media_var)
+                transforms['solID'] = sol_id
+                transforms['media_variable'] = media_var
+                transforms_list.append(transforms)
+        
+        return pd.concat(transforms_list, ignore_index=True)

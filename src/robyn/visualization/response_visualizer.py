@@ -144,7 +144,7 @@ class ResponseVisualizer(BaseVisualizer):
                     formatted_spend,
                     ha="left",
                     va="bottom",
-                    fontsize=9,
+                    fontsize=8,
                     color=color,
                 )
 

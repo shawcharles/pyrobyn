@@ -172,7 +172,7 @@ class ClusterVisualizer(BaseVisualizer):
                         y_pos,
                         cluster_ci_rn["boot_ci"].iloc[0],
                         color="#4D4D4D",
-                        size=9,
+                        size=8,
                     )
 
             # Add vertical line at x=1
@@ -523,7 +523,7 @@ class ClusterVisualizer(BaseVisualizer):
                 f"{float(f'{row.ci_low:.2g}')}",
                 va="center",
                 ha="right",
-                fontsize=9,
+                fontsize=8,
                 color="black",
             )
 
@@ -533,12 +533,12 @@ class ClusterVisualizer(BaseVisualizer):
                 f"{float(f'{row.ci_up:.2g}')}",
                 va="center",
                 ha="left",
-                fontsize=9,
+                fontsize=8,
                 color="black",
             )
 
         ax.set_yticks(y_pos)
-        ax.set_yticklabels(bootstrap_data["rn"], fontsize=9)
+        ax.set_yticklabels(bootstrap_data["rn"], fontsize=8)
 
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
@@ -562,7 +562,7 @@ class ClusterVisualizer(BaseVisualizer):
 
         title = f"In-cluster{cluster_txt} bootstrapped {metric_type} [95% CI & mean]"
 
-        ax.set_title(title, pad=20, fontsize=11)
+        ax.set_title(title, pad=20, fontsize=8)
 
         x_min = bootstrap_data["ci_low"].min()
         x_max = bootstrap_data["ci_up"].max()

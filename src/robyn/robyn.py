@@ -225,6 +225,7 @@ class Robyn:
         cluster_config: Optional[ClusteringConfig] = None,
         display_plots: bool = True,
         export_plots: bool = False,
+        export_results: bool = True,
     ) -> None:
         """
         Evaluates the trained models using Pareto optimization and optional clustering.
@@ -233,6 +234,7 @@ class Robyn:
         cluster_config (Optional[ClusteringConfig]): Configuration for clustering the models. If not provided, clustering will be skipped.
         display_plots (bool): If True, plots will be displayed. Default is True.
         export_plots (bool): If True, plots will be exported. Default is False.
+        export_results (bool): If True, results will be exported to CSV files. Default is True.
         Raises:
         ValueError: If models have not been trained before evaluation.
         Exception: If any error occurs during the evaluation process.
@@ -259,6 +261,16 @@ class Robyn:
             )
             self.pareto_result = pareto_optimizer.optimize(**pareto_config)
             unfiltered_pareto_result = copy.deepcopy(self.pareto_result)
+
+            # Export results if requested
+            if export_results:
+                from robyn.export_manager import ExportManager
+                export_mgr = ExportManager(self.working_dir)
+                exported_files = export_mgr.export_pareto_results(
+                    self.pareto_result,
+                    self.mmm_data
+                )
+                logger.info("Exported results to: %s", exported_files)
 
             # Optional clustering
             is_clustered = False

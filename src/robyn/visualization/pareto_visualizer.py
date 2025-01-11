@@ -178,7 +178,7 @@ class ParetoVisualizer(BaseVisualizer):
                 f"{formatted_num}\n{row.xDecompPerc*100:.1f}%",
                 ha="center",  # Center align horizontally
                 va="center",  # Center align vertically
-                fontsize=9,
+                fontsize=8,
                 linespacing=0.9,
             )
 
@@ -348,7 +348,7 @@ class ParetoVisualizer(BaseVisualizer):
                                     rotation=270,
                                     color="#39638b",
                                     alpha=0.5,
-                                    size=9,
+                                    size=8,
                                     ha="left",
                                     va="top",
                                 )

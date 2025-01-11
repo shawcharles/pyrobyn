@@ -104,60 +104,70 @@ class ParetoOptimizer:
         # Prevent logger from propagating to root logger
         self.logger.propagate = False
 
-    def optimize(
-        self,
-        pareto_fronts: str = "auto",
-        min_candidates: int = 100,
-        calibration_constraint: float = 0.1,
-        calibrated: bool = False,
-    ) -> ParetoResult:
+    def optimize(self) -> ParetoResult:
         """
-        Perform Pareto optimization on the model results.
-
-        This method orchestrates the entire Pareto optimization process, including data aggregation,
-        Pareto front calculation, response curve calculation, and preparation of plot data.
-
-        Args:
-            pareto_fronts (str): Number of Pareto fronts to consider or "auto" for automatic selection.
-            min_candidates (int): Minimum number of candidates to consider when using "auto" Pareto fronts.
-            calibration_constraint (float): Constraint for calibration, used if models are calibrated.
-            calibrated (bool): Whether the models have undergone calibration.
+        Perform Pareto optimization.
 
         Returns:
-            ParetoResult: The results of the Pareto optimization process.
+            ParetoResult: Results of the Pareto optimization
         """
-        try:
-            self.logger.info("Starting Pareto optimization")
-            aggregated_data = self.data_aggregator.aggregate_model_data(calibrated)
-            aggregated_data["result_hyp_param"] = self._compute_pareto_fronts(
-                aggregated_data, pareto_fronts, calibration_constraint
-            )
+        self.logger.info("Starting Pareto optimization")
 
-            pareto_data = self.prepare_pareto_data(
-                aggregated_data, pareto_fronts, min_candidates, calibrated
-            )
-            pareto_data = self.response_curve_calculator.compute_response_curves(
-                pareto_data, aggregated_data
-            )
-            plotting_data = self.plot_data_generator.generate_plot_data(
-                aggregated_data, pareto_data
-            )
+        # Aggregate model data
+        self.logger.info("Starting model data aggregation")
+        pareto_data = self.data_aggregator.aggregate_data()
 
-            self.logger.info("Pareto optimization completed successfully")
-            return ParetoResult(
-                pareto_solutions=plotting_data["pareto_solutions"],
-                pareto_fronts=max(pareto_data.pareto_fronts),
-                result_hyp_param=aggregated_data["result_hyp_param"],
-                result_calibration=aggregated_data["result_calibration"],
-                x_decomp_agg=pareto_data.x_decomp_agg,
-                media_vec_collect=plotting_data["mediaVecCollect"],
-                x_decomp_vec_collect=plotting_data["xDecompVecCollect"],
-                plot_data_collect=plotting_data["plotDataCollect"],
-                df_caov_pct_all=plotting_data["df_caov_pct_all"],
-            )
-        except Exception as e:
-            self.logger.error(f"Error during Pareto optimization: {e}")
-            raise
+        # Compute Pareto fronts
+        self.logger.info("Computing Pareto fronts")
+        pareto_fronts = ParetoUtils.compute_pareto_fronts(
+            pareto_data.decomp_spend_dist,
+            pareto_data.result_hyp_param,
+        )
+        self.logger.info("Pareto front computation completed")
+
+        # Prepare Pareto data
+        self.logger.info("Preparing Pareto data")
+        pareto_solutions = ParetoUtils.get_pareto_solutions(
+            pareto_data.decomp_spend_dist,
+            pareto_fronts,
+        )
+        self.logger.info(f"Number of Pareto-optimal solutions found: {len(pareto_solutions)}")
+
+        # Calculate response curves
+        self.logger.info("Calculating response curves")
+        response_curves = self.response_curve_calculator.calculate_response_curves(
+            pareto_solutions
+        )
+
+        # Generate plot data
+        plot_data = self.plot_data_generator.generate_plot_data(
+            pareto_solutions,
+            pareto_data.decomp_spend_dist,
+            pareto_data.result_hyp_param,
+        )
+
+        # Prepare hyperparameters dataframe
+        hyperparameters_df = pareto_data.result_hyp_param[
+            pareto_data.result_hyp_param['solID'].isin(pareto_solutions)
+        ].copy()
+
+        # Prepare media transforms dataframe
+        media_transforms_df = self.transformer.get_media_transforms(pareto_solutions)
+
+        # Prepare all decomposition matrix
+        all_decomp_df = self.data_aggregator.get_all_decomposition_matrix(pareto_solutions)
+
+        # Create and return ParetoResult
+        return ParetoResult(
+            pareto_solutions=pareto_solutions,
+            x_decomp_agg=pareto_data.x_decomp_agg,
+            x_decomp_vec_collect=response_curves.x_decomp_vec_collect,
+            plot_data_collect=plot_data,
+            df_caov_pct_all=response_curves.df_caov_pct_all,
+            hyperparameters=hyperparameters_df,
+            media_transforms=media_transforms_df,
+            all_decomp=all_decomp_df
+        )
 
     def _determine_pareto_fronts(
         self,

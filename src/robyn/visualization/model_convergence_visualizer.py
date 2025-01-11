@@ -76,11 +76,11 @@ class ModelConvergenceVisualizer:
                 inner="quartile",
                 ax=ax,
             )
-            ax.set_xlabel("Objective functions", fontsize=12, ha="left", x=0)
-            ax.set_ylabel("Iterations [#]", fontsize=12)
+            ax.set_xlabel("Objective functions", fontsize=8, ha="left", x=0)
+            ax.set_ylabel("Iterations [#]", fontsize=8)
             ax.set_title(
                 "Objective convergence by iterations quantiles",
-                fontsize=14,
+                fontsize=8,
                 fontweight="bold",
             )
             ax.grid(True, linestyle="--", linewidth=0.5)
@@ -149,11 +149,11 @@ class ModelConvergenceVisualizer:
                     linewidth=0.5,
                 )
             plt.colorbar(scatter, label="Time [s]")
-            ax.set_xlabel("NRMSE", fontsize=12, ha="left", x=0)
-            ax.set_ylabel("DECOMP.RSSD", fontsize=12)
+            ax.set_xlabel("NRMSE", fontsize=8, ha="left", x=0)
+            ax.set_ylabel("DECOMP.RSSD", fontsize=8)
             ax.set_title(
                 "Multi-objective evolutionary performance",
-                fontsize=14,
+                fontsize=8,
                 fontweight="bold",
             )
             # Add text annotations on the bottom right
@@ -259,8 +259,8 @@ class ModelConvergenceVisualizer:
                     legend=False,
                     linewidth=1,
                 )
-                ax.set_ylabel(f"NRMSE [Trial {trial}]", fontsize=12, fontweight="bold")
-                ax.set_xlabel("Iteration", fontsize=12, fontweight="bold")
+                ax.set_ylabel(f"NRMSE [Trial {trial}]", fontsize=8, fontweight="bold")
+                ax.set_xlabel("Iteration", fontsize=8, fontweight="bold")
                 ax.legend(title="Dataset", loc="upper right")
             # Train Size plot
             sns.scatterplot(
@@ -271,15 +271,15 @@ class ModelConvergenceVisualizer:
                 ax=axes[-1],
                 legend=False,
             )
-            axes[-1].set_ylabel("Train Size", fontsize=12, fontweight="bold")
-            axes[-1].set_xlabel("Iteration", fontsize=12, fontweight="bold")
+            axes[-1].set_ylabel("Train Size", fontsize=8, fontweight="bold")
+            axes[-1].set_xlabel("Iteration", fontsize=8, fontweight="bold")
             axes[-1].set_ylim(0, 1)
             axes[-1].yaxis.set_major_formatter(
                 plt.FuncFormatter(lambda y, _: "{:.0%}".format(y))
             )
             # Set the overall title
             plt.suptitle(
-                "Time-series validation & Convergence", fontsize=14, fontweight="bold"
+                "Time-series validation & Convergence", fontsize=8, fontweight="bold"
             )
             plt.tight_layout()
             logger.info("Successfully created time-series validation plot")
