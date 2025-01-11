@@ -276,7 +276,7 @@ class AllocatorPlotter(BaseVisualizer):
                     )
 
                 # Customize subplot
-                ax.set_title(channel, fontsize=10)
+                ax.set_title(channel, fontsize=8)
                 ax.set_xlabel("Spend")
                 ax.set_ylabel("Response")
 
@@ -612,7 +612,7 @@ class AllocatorPlotter(BaseVisualizer):
             ax.set_title(
                 f"Total Budget Optimization Result (scaled up to {self.dt_optimOut.periods})",
                 pad=20,
-                fontsize=10,
+                fontsize=8,
                 loc="left",
             )
 
