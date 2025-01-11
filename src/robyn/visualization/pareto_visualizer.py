@@ -943,3 +943,4 @@ class ParetoVisualizer(BaseVisualizer):
         for name, fig in figures.items():
             print(f"Displaying plot: {name}")
             # fig.show()  # Uncomment when ready to display
+ 
