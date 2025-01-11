@@ -314,7 +314,7 @@ class ClusterVisualizer(BaseVisualizer):
             0.01,
             f"Weights: NRMSE {round(100 * balance[0])}%, DECOMP.RSSD {round(100 * balance[1])}%, MAPE {round(100 * balance[2])}%",
             ha="center",
-            fontsize=10,
+            fontsize=8,
         )
         figs = plt.gcf()
         plt.close(figs)
@@ -513,7 +513,7 @@ class ClusterVisualizer(BaseVisualizer):
                 f"{float(f'{row.boot_mean:.2g}')}",
                 va="bottom",
                 ha="center",
-                fontsize=10,
+                fontsize=8,
                 color="black",
             )
 
