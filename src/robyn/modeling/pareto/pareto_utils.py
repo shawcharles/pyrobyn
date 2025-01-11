@@ -115,56 +115,78 @@ class ParetoUtils:
 
         return x_out
 
-    @staticmethod
     def compute_pareto_fronts(
-        decomp_spend_dist: pd.DataFrame,
-        result_hyp_param: pd.DataFrame,
-        n_fronts: int = 1,
+        self,
+        nrmse: np.ndarray,
+        decomp_rssd: np.ndarray,
+        n_fronts: int = 3,
     ) -> List[int]:
         """
-        Compute Pareto fronts from model results.
+        Compute Pareto fronts for given NRMSE and DECOMP.RSSD values.
 
         Args:
-            decomp_spend_dist: Decomposition spending distribution
-            result_hyp_param: Model hyperparameters and results
+            nrmse: Array of NRMSE values
+            decomp_rssd: Array of DECOMP.RSSD values
             n_fronts: Number of Pareto fronts to compute
 
         Returns:
-            List of Pareto front indices
+            List of indices representing solutions in Pareto fronts
         """
-        # Calculate Pareto fronts based on NRMSE and DECOMP.RSSD
-        nrmse = result_hyp_param["nrmse"].values
-        decomp_rssd = result_hyp_param["decomp.rssd"].values
+        if len(nrmse) != len(decomp_rssd):
+            raise ValueError(
+                f"Length mismatch: nrmse ({len(nrmse)}) != decomp_rssd ({len(decomp_rssd)})"
+            )
+            
+        if len(nrmse) == 0:
+            return []
+            
+        if n_fronts <= 0:
+            raise ValueError("n_fronts must be positive")
+            
+        # Initialize list to store indices of solutions in all fronts
+        all_front_indices = []
         
-        fronts = []
-        remaining = list(range(len(nrmse)))
+        # Create a mask for unassigned solutions
+        unassigned = np.ones(len(nrmse), dtype=bool)
         
-        for _ in range(n_fronts):
-            if not remaining:
+        # Find fronts until we have enough or no more solutions
+        for front_num in range(n_fronts):
+            if not np.any(unassigned):
+                self.logger.info(f"All solutions assigned after {front_num} fronts")
                 break
                 
-            front = []
-            for i in remaining:
+            # Find non-dominated solutions among remaining ones
+            front_indices = []
+            for i in np.where(unassigned)[0]:
                 dominated = False
-                for j in remaining:
+                for j in np.where(unassigned)[0]:
                     if i != j:
                         if (nrmse[j] <= nrmse[i] and decomp_rssd[j] < decomp_rssd[i]) or \
                            (nrmse[j] < nrmse[i] and decomp_rssd[j] <= decomp_rssd[i]):
                             dominated = True
                             break
                 if not dominated:
-                    front.append(i)
+                    front_indices.append(i)
             
-            fronts.extend(front)
-            remaining = [i for i in remaining if i not in front]
-            
-            if not front:  # No more fronts can be found
+            if not front_indices:  # No more non-dominated solutions found
+                self.logger.warning(
+                    f"No more non-dominated solutions found after {front_num} fronts"
+                )
                 break
             
-        return fronts
+            # Add indices to all fronts and mark as assigned
+            all_front_indices.extend(front_indices)
+            unassigned[front_indices] = False
+            
+            self.logger.debug(
+                f"Front {front_num + 1}: {len(front_indices)} solutions, "
+                f"Total: {len(all_front_indices)}"
+            )
+        
+        return all_front_indices
 
-    @staticmethod
     def get_pareto_solutions(
+        self,
         decomp_spend_dist: pd.DataFrame,
         pareto_front_indices: List[int],
     ) -> List[str]:

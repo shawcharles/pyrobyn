@@ -54,6 +54,8 @@ class ParetoOptimizer:
             mmm_data (MMMData): Input data for the marketing mix model.
             model_outputs (ModelOutputs): Output data from the model runs.
             hyperparameter (Hyperparameters): Hyperparameters for the model runs.
+            featurized_mmm_data (FeaturizedMMMData): Featurized data for the model.
+            holidays_data (HolidaysData): Holiday data for the model.
         """
         self.mmm_data = mmm_data
         self.model_outputs = model_outputs
@@ -61,6 +63,7 @@ class ParetoOptimizer:
         self.featurized_mmm_data = featurized_mmm_data
         self.holidays_data = holidays_data
         self.data_aggregator = DataAggregator(model_outputs)
+        self.pareto_utils = ParetoUtils()  # Initialize ParetoUtils instance
 
         self.transformer = Transformation(mmm_data)
 
@@ -121,28 +124,64 @@ class ParetoOptimizer:
         self.logger.info("Starting model data aggregation")
         pareto_data = self.data_aggregator.aggregate_data()
 
-        # Determine number of Pareto fronts
-        pareto_indices = self._determine_pareto_fronts(
-            pareto_data.result_hyp_param,
-            pareto_fronts,
-            min_candidates,
-            calibrated,
-        )
+        # Get available trial IDs
+        available_trial_ids = {t.sol_id for t in self.model_outputs.trials}
+        
+        # Filter result_hyp_param to only include rows with valid trial IDs
+        result_hyp_param = pareto_data.result_hyp_param[
+            pareto_data.result_hyp_param['sol_id'].isin(available_trial_ids)
+        ]
+        
+        if result_hyp_param.empty:
+            raise ValueError(
+                "No valid solutions found. This could mean that no models were trained successfully."
+            )
+            
+        # Get NRMSE and DECOMP.RSSD values
+        try:
+            nrmse = result_hyp_param["NRMSE"].values
+        except KeyError:
+            try:
+                nrmse = result_hyp_param["nrmse"].values
+            except KeyError:
+                raise KeyError(
+                    "Could not find NRMSE column in result_hyp_param. "
+                    f"Available columns are: {result_hyp_param.columns.tolist()}"
+                )
+                
+        try:
+            decomp_rssd = result_hyp_param["DECOMP.RSSD"].values
+        except KeyError:
+            try:
+                decomp_rssd = result_hyp_param["decomp.rssd"].values
+            except KeyError:
+                raise KeyError(
+                    "Could not find DECOMP.RSSD column in result_hyp_param. "
+                    f"Available columns are: {result_hyp_param.columns.tolist()}"
+                )
 
         # Compute Pareto fronts
         self.logger.info("Computing Pareto fronts")
-        pareto_fronts = self.pareto_utils.compute_pareto_fronts(
-            pareto_data.decomp_spend_dist,
-            pareto_data.result_hyp_param,
+        pareto_indices = self.pareto_utils.compute_pareto_fronts(
+            nrmse=nrmse,
+            decomp_rssd=decomp_rssd,
             n_fronts=pareto_fronts,
         )
+        
+        # Check if we have enough candidates
+        if len(pareto_indices) < min_candidates and not calibrated:
+            raise ValueError(
+                f"Less than {min_candidates} candidates in pareto fronts. "
+                "Increase iterations to get more model candidates or decrease min_candidates."
+            )
+            
         self.logger.info("Pareto front computation completed")
 
-        # Prepare Pareto data
+        # Get Pareto solutions
         self.logger.info("Preparing Pareto data")
         pareto_solutions = self.pareto_utils.get_pareto_solutions(
             pareto_data.decomp_spend_dist,
-            pareto_fronts,
+            pareto_indices,
         )
         self.logger.info(f"Number of Pareto-optimal solutions found: {len(pareto_solutions)}")
 
@@ -181,81 +220,6 @@ class ParetoOptimizer:
             media_transforms=media_transforms_df,
             all_decomp=all_decomp_df
         )
-
-    def _determine_pareto_fronts(
-        self,
-        result_hyp_param: pd.DataFrame,
-        pareto_fronts: int = 3,
-        min_candidates: int = 100,
-        calibrated: bool = False,
-    ) -> List[int]:
-        """
-        Determine Pareto fronts based on NRMSE and DECOMP.RSSD values.
-        
-        Args:
-            result_hyp_param: DataFrame containing model results
-            pareto_fronts: Number of Pareto fronts to compute
-            min_candidates: Minimum number of candidates required
-            calibrated: Whether to use calibrated results
-            
-        Returns:
-            List of indices representing solutions in Pareto fronts
-        """
-        # Get available trial IDs
-        available_trial_ids = {t.sol_id for t in self.model_outputs.trials}
-        
-        # Filter result_hyp_param to only include rows with valid trial IDs
-        result_hyp_param = result_hyp_param[result_hyp_param['sol_id'].isin(available_trial_ids)]
-        
-        if result_hyp_param.empty:
-            raise ValueError(
-                "No valid solutions found. This could mean that no models were trained successfully."
-            )
-            
-        # Log available columns for debugging
-        self.logger.debug("Available columns in result_hyp_param: %s", result_hyp_param.columns.tolist())
-        
-        # Get NRMSE and DECOMP.RSSD values (try different possible column names)
-        try:
-            nrmse = result_hyp_param["NRMSE"].values
-        except KeyError:
-            try:
-                nrmse = result_hyp_param["nrmse"].values
-            except KeyError:
-                raise KeyError(
-                    "Could not find NRMSE column in result_hyp_param. "
-                    f"Available columns are: {result_hyp_param.columns.tolist()}"
-                )
-                
-        try:
-            decomp_rssd = result_hyp_param["DECOMP.RSSD"].values
-        except KeyError:
-            try:
-                decomp_rssd = result_hyp_param["decomp.rssd"].values
-            except KeyError:
-                raise KeyError(
-                    "Could not find DECOMP.RSSD column in result_hyp_param. "
-                    f"Available columns are: {result_hyp_param.columns.tolist()}"
-                )
-        
-        # Compute Pareto fronts
-        pareto_indices = self.pareto_utils.compute_pareto_fronts(
-            nrmse=nrmse,
-            decomp_rssd=decomp_rssd,
-            n_fronts=pareto_fronts,
-        )
-        
-        # Check if we have enough candidates
-        if (
-            len(pareto_indices) < min_candidates
-            and not calibrated
-        ):
-            raise ValueError(
-                f"Less than {min_candidates} candidates in pareto fronts. "
-                "Increase iterations to get more model candidates or decrease min_candidates."
-            )
-        
-        return pareto_indices
 
     def prepare_pareto_data(
         self,
@@ -337,6 +301,81 @@ class ParetoOptimizer:
             x_decomp_agg=x_decomp_agg_pareto,
             pareto_fronts=pareto_indices,
         )
+
+    def _determine_pareto_fronts(
+        self,
+        result_hyp_param: pd.DataFrame,
+        pareto_fronts: int = 3,
+        min_candidates: int = 100,
+        calibrated: bool = False,
+    ) -> List[int]:
+        """
+        Determine Pareto fronts based on NRMSE and DECOMP.RSSD values.
+        
+        Args:
+            result_hyp_param: DataFrame containing model results
+            pareto_fronts: Number of Pareto fronts to compute
+            min_candidates: Minimum number of candidates required
+            calibrated: Whether to use calibrated results
+            
+        Returns:
+            List of indices representing solutions in Pareto fronts
+        """
+        # Get available trial IDs
+        available_trial_ids = {t.sol_id for t in self.model_outputs.trials}
+        
+        # Filter result_hyp_param to only include rows with valid trial IDs
+        result_hyp_param = result_hyp_param[result_hyp_param['sol_id'].isin(available_trial_ids)]
+        
+        if result_hyp_param.empty:
+            raise ValueError(
+                "No valid solutions found. This could mean that no models were trained successfully."
+            )
+            
+        # Log available columns for debugging
+        self.logger.debug("Available columns in result_hyp_param: %s", result_hyp_param.columns.tolist())
+        
+        # Get NRMSE and DECOMP.RSSD values (try different possible column names)
+        try:
+            nrmse = result_hyp_param["NRMSE"].values
+        except KeyError:
+            try:
+                nrmse = result_hyp_param["nrmse"].values
+            except KeyError:
+                raise KeyError(
+                    "Could not find NRMSE column in result_hyp_param. "
+                    f"Available columns are: {result_hyp_param.columns.tolist()}"
+                )
+                
+        try:
+            decomp_rssd = result_hyp_param["DECOMP.RSSD"].values
+        except KeyError:
+            try:
+                decomp_rssd = result_hyp_param["decomp.rssd"].values
+            except KeyError:
+                raise KeyError(
+                    "Could not find DECOMP.RSSD column in result_hyp_param. "
+                    f"Available columns are: {result_hyp_param.columns.tolist()}"
+                )
+        
+        # Compute Pareto fronts
+        pareto_indices = self.pareto_utils.compute_pareto_fronts(
+            nrmse=nrmse,
+            decomp_rssd=decomp_rssd,
+            n_fronts=pareto_fronts,
+        )
+        
+        # Check if we have enough candidates
+        if (
+            len(pareto_indices) < min_candidates
+            and not calibrated
+        ):
+            raise ValueError(
+                f"Less than {min_candidates} candidates in pareto fronts. "
+                "Increase iterations to get more model candidates or decrease min_candidates."
+            )
+        
+        return pareto_indices
 
     def _compute_pareto_fronts(
         self,
