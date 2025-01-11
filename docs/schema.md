@@ -1,0 +1,37 @@
+# Pareto Aggregated CSV: Aggregated Result for All Independent Variables
+
+- **solID**: Character. Model ID of pareto output.
+- **rn**: Character. Independent variable names
+- **coef**: Numeric. Estimated beta coefficient
+- **xDecompAgg**: Numeric. Aggregated decomposed effect. Pseudo-calc: sum(beta1 * channel1_adstocked_saturated)
+- **xDecompPerc**: Numeric. Share of decomposed effect. Pseudo-calc: xDecompAgg / sum(xDecompAgg)
+- **xDecompMeanNon0**: Numeric. Mean decomposed effect of non-zero spend periods. Pseudo-calc: mean(beta1 * channel1_adstocked_saturated[spend > 0])
+- **xDecompMeanNon0Perc**: Numeric. Share of xDecompMeanNon0. Pseudo-calc: xDecompMeanNon0 / sum(xDecompMeanNon0)
+- **xDecompAggRF**: Numeric. xDecompAgg for the appended refreshing period only.
+- **xDecompPercRF**: Numeric. Share of xDecompAgg.
+- **xDecompMeanNon0PercRF**: Numeric. xDecompMeanNon0 for the appended refreshing period only.
+- **pos**: Logical. Coef sign check. TRUE when coef >= 0
+- **spend_share_refresh**: Numeric. Share of total spend for the appended refreshing period only.
+- **effect_share_refresh**: Numeric. Share of total effect for the appended refreshing period only.
+- **mape**: Numeric. MAPE.LIFT for calibration is the third objective function when using calibration.
+- **nrmse**: Numeric. NRMSE normalized root-mean of squared error. Main objective function.
+- **decomp.rssd**: Numeric. DECOMP.RSSE decomposition root-sum of squared error. Main objective function.
+- **rsq_train**: Numeric. Adjusted R squared of training data.
+- **lambda**: Numeric. The L2 regularization parameter.
+- **iterPar**: Integer. Parallel iteration in inner loop of robyn_mmm that equals number of cores.
+- **iterNG**: Integer. Pseudo-calc: iterNG = round(total_iteration / iterPar)
+- **df.int**: Integer. Degree of freedom for intercept that takes on 0 or 1.
+- **trial**: Integer. Trial of current model.
+- **iterations**: Integer. Iteration position of current model and current trial.
+- **robynPareto**: Integer. Position of pareto front of current model.
+- **total_spend**: Numeric. Total spend of each paid_media_vars.
+- **mean_spend**: Numeric. Mean spend of non-zero periods of each paid_media_vars.
+- **spend_share**: Numeric. Share of total_spend.
+- **effect_share**: Numeric. Share of total effect among paid media. Pseudo-calc: xDecompPerc / sum(xDecompPerc) for paid media only
+- **roi_mean**: Numeric. Pseudo-calc: roi_mean = mean_response / mean_spend.
+- **roi_total**: Numeric. Pseudo-calc: roi_total = xDecompAgg / total_spend.
+- **trend**: Numeric. Vector of predicted response of trend.
+- **season**: Numeric. Vector of predicted response of season.
+- **weekday**: Numeric. Vector of predicted response of weekday.
+- **channel_1**: Numeric. Vector of predicted response of channel1.
+- **channel_2**: Numeric. Vector of predicted response of channel2.
