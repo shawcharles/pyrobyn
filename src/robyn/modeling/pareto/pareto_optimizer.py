@@ -104,9 +104,21 @@ class ParetoOptimizer:
         # Prevent logger from propagating to root logger
         self.logger.propagate = False
 
-    def optimize(self) -> ParetoResult:
+    def optimize(
+        self,
+        pareto_fronts: str = "auto",
+        min_candidates: int = 100,
+        calibration_constraint: float = 0.1,
+        calibrated: bool = False,
+    ) -> ParetoResult:
         """
         Perform Pareto optimization.
+
+        Args:
+            pareto_fronts: Number of Pareto fronts to consider or "auto"
+            min_candidates: Minimum number of candidates to consider
+            calibration_constraint: Constraint for calibration
+            calibrated: Whether models are calibrated
 
         Returns:
             ParetoResult: Results of the Pareto optimization
@@ -117,11 +129,20 @@ class ParetoOptimizer:
         self.logger.info("Starting model data aggregation")
         pareto_data = self.data_aggregator.aggregate_data()
 
+        # Determine number of Pareto fronts
+        n_fronts = self._determine_pareto_fronts(
+            pareto_data.result_hyp_param,
+            pareto_fronts,
+            min_candidates,
+            calibrated,
+        )
+
         # Compute Pareto fronts
         self.logger.info("Computing Pareto fronts")
         pareto_fronts = ParetoUtils.compute_pareto_fronts(
             pareto_data.decomp_spend_dist,
             pareto_data.result_hyp_param,
+            n_fronts=n_fronts,
         )
         self.logger.info("Pareto front computation completed")
 

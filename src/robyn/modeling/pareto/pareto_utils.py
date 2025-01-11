@@ -115,6 +115,51 @@ class ParetoUtils:
 
         return x_out
 
+    @staticmethod
+    def compute_pareto_fronts(
+        decomp_spend_dist: pd.DataFrame,
+        result_hyp_param: pd.DataFrame,
+        n_fronts: int = 1,
+    ) -> List[int]:
+        """
+        Compute Pareto fronts from model results.
+
+        Args:
+            decomp_spend_dist: Decomposition spending distribution
+            result_hyp_param: Model hyperparameters and results
+            n_fronts: Number of Pareto fronts to compute
+
+        Returns:
+            List of Pareto front indices
+        """
+        # Calculate Pareto fronts based on NRMSE and DECOMP.RSSD
+        nrmse = result_hyp_param["nrmse"].values
+        decomp_rssd = result_hyp_param["decomp.rssd"].values
+        
+        fronts = []
+        remaining = np.arange(len(nrmse))
+        
+        for _ in range(n_fronts):
+            if len(remaining) == 0:
+                break
+                
+            front = []
+            for i in remaining:
+                dominated = False
+                for j in remaining:
+                    if i != j:
+                        if (nrmse[j] <= nrmse[i] and decomp_rssd[j] < decomp_rssd[i]) or \
+                           (nrmse[j] < nrmse[i] and decomp_rssd[j] <= decomp_rssd[i]):
+                            dominated = True
+                            break
+                if not dominated:
+                    front.append(i)
+            
+            fronts.extend(front)
+            remaining = np.setdiff1d(remaining, front)
+            
+        return fronts
+
     def process_pareto_clustered_results(
         self,
         pareto_results: ParetoResult,
