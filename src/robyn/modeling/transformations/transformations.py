@@ -348,3 +348,127 @@ class Transformation:
                 transforms_list.append(transforms)
         
         return pd.concat(transforms_list, ignore_index=True)
+
+    def calculate_decomposition_vectors(
+        self,
+        coef: pd.DataFrame,
+        hyppar: pd.DataFrame,
+    ) -> Dict:
+        """
+        Calculate decomposition vectors for each media channel.
+
+        Args:
+            coef: Model coefficients
+            hyppar: Model hyperparameters
+
+        Returns:
+            Dictionary mapping channel names to their decomposition vectors
+        """
+        x_decomp_vec = {}
+        
+        for channel in self.mmm_data.media_names:
+            # Get channel hyperparameters
+            channel_hyppar = hyppar[hyppar["variable"] == channel].iloc[0]
+            
+            # Get channel coefficient
+            channel_coef = coef[coef["variable"] == channel].iloc[0]["coef"]
+            
+            # Calculate transformation based on adstock type
+            if channel_hyppar["adstock"] == "geometric":
+                x_decomp = self._geometric_adstock(
+                    x=self.mmm_data.media_data[channel].values,
+                    theta=channel_hyppar["theta"],
+                )
+            else:  # weibull
+                x_decomp = self._weibull_adstock(
+                    x=self.mmm_data.media_data[channel].values,
+                    shape=channel_hyppar["shape"],
+                    scale=channel_hyppar["scale"],
+                )
+            
+            # Apply Hill transformation
+            x_decomp = self._hill_transform(
+                x=x_decomp,
+                alpha=channel_hyppar["alpha"],
+                gamma=channel_hyppar["gamma"],
+            )
+            
+            # Apply coefficient
+            x_decomp = x_decomp * channel_coef
+            
+            x_decomp_vec[channel] = x_decomp
+            
+        return x_decomp_vec
+
+    def calculate_carryover_percentage(
+        self,
+        coef: pd.DataFrame,
+        hyppar: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        Calculate carryover percentages for each media channel.
+
+        Args:
+            coef: Model coefficients
+            hyppar: Model hyperparameters
+
+        Returns:
+            DataFrame with carryover percentages for each channel
+        """
+        caov_pct_list = []
+        
+        for channel in self.mmm_data.media_names:
+            # Get channel hyperparameters
+            channel_hyppar = hyppar[hyppar["variable"] == channel].iloc[0]
+            
+            # Calculate carryover based on adstock type
+            if channel_hyppar["adstock"] == "geometric":
+                caov_pct = channel_hyppar["theta"]
+            else:  # weibull
+                caov_pct = 1 - (1 / (1 + channel_hyppar["scale"]))
+            
+            caov_pct_list.append({
+                "channel": channel,
+                "carryover_pct": caov_pct,
+            })
+        
+        return pd.DataFrame(caov_pct_list)
+
+    def _geometric_adstock(
+        self,
+        x: np.ndarray,
+        theta: float,
+    ) -> np.ndarray:
+        """Apply geometric adstock transformation."""
+        y = np.zeros_like(x)
+        y[0] = x[0]
+        for i in range(1, len(x)):
+            y[i] = x[i] + theta * y[i-1]
+        return y
+
+    def _weibull_adstock(
+        self,
+        x: np.ndarray,
+        shape: float,
+        scale: float,
+    ) -> np.ndarray:
+        """Apply Weibull adstock transformation."""
+        # Generate Weibull weights
+        L = len(x)
+        weights = np.zeros(L)
+        t = np.arange(1, L+1)
+        weights = (shape/scale) * (t/scale)**(shape-1) * np.exp(-(t/scale)**shape)
+        weights = weights / weights.sum()  # normalize
+        
+        # Apply convolution
+        return np.convolve(x, weights, mode='full')[:L]
+
+    def _hill_transform(
+        self,
+        x: np.ndarray,
+        alpha: float,
+        gamma: float,
+    ) -> np.ndarray:
+        """Apply Hill (S-curve) transformation."""
+        x_scaled = x / x.max()  # scale to [0,1]
+        return (x_scaled**gamma) / (alpha**gamma + x_scaled**gamma)

@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Literal, Optional, Union
+from typing import Dict, Literal, Optional, Union, List
 
 import numpy as np
 import pandas as pd
@@ -58,6 +58,16 @@ class ResponseOutput:
             f"date_range: {self.date.iloc[0]} to {self.date.iloc[-1]}, "
             f"usecase: {self.usecase})"
         )
+
+
+@dataclass
+class ResponseCurves:
+    """Data class to hold response curve calculation results."""
+    x_decomp_vec_collect: Dict
+    df_caov_pct_all: pd.DataFrame
+
+    def __str__(self) -> str:
+        return f"ResponseCurves(x_decomp_vec_collect: {len(self.x_decomp_vec_collect)} items)"
 
 
 class UseCase(str, Enum):
@@ -767,4 +777,55 @@ class ResponseCurveCalculator:
         pareto_data.decomp_spend_dist["cpa_total"] = (
             pareto_data.decomp_spend_dist["total_spend"]
             / pareto_data.decomp_spend_dist["xDecompAgg"]
+        )
+
+    def calculate_response_curves(
+        self,
+        pareto_solutions: List[str],
+    ) -> ResponseCurves:
+        """
+        Calculate response curves for Pareto-optimal solutions.
+
+        Args:
+            pareto_solutions: List of solution IDs to calculate curves for
+
+        Returns:
+            ResponseCurves object containing decomposition vectors and carryover percentages
+        """
+        self.logger.info("Calculating response curves for %d solutions", len(pareto_solutions))
+        
+        # Initialize containers for results
+        x_decomp_vec_collect = {}
+        caov_pct_list = []
+        
+        # Process each solution
+        for sol_id in pareto_solutions:
+            # Get the trial for this solution
+            trial = next(t for t in self.model_outputs.trials if t.sol_id == sol_id)
+            
+            # Get model coefficients and hyperparameters
+            coef = trial.result_coef
+            hyppar = trial.result_hyp_param
+            
+            # Calculate decomposition vectors
+            x_decomp_vec = self.transformation.calculate_decomposition_vectors(
+                coef=coef,
+                hyppar=hyppar,
+            )
+            x_decomp_vec_collect[sol_id] = x_decomp_vec
+            
+            # Calculate carryover percentages
+            caov_pct = self.transformation.calculate_carryover_percentage(
+                coef=coef,
+                hyppar=hyppar,
+            )
+            caov_pct["sol_id"] = sol_id
+            caov_pct_list.append(caov_pct)
+        
+        # Combine carryover percentages
+        df_caov_pct_all = pd.concat(caov_pct_list, ignore_index=True)
+        
+        return ResponseCurves(
+            x_decomp_vec_collect=x_decomp_vec_collect,
+            df_caov_pct_all=df_caov_pct_all,
         )
