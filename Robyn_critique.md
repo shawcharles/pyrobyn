@@ -21,7 +21,7 @@ Robyn incorporates sophisticated transformations to capture the dynamic effects 
 ### Adstock Transformations
 Adstock transformations model the carryover effects of advertising over time. Robyn offers two key variants:
 
-1. **Geometric Adstock**: This is a simple decay model where the impact of advertising diminishes geometrically over time, controlled by a decay parameter (\( \theta \)). While straightforward, this approach assumes a fixed decay rate, which may not capture the nuances of real-world advertising effects.
+1. **Geometric Adstock**: This is a simple decay model where the impact of advertising diminishes geometrically over time, controlled by a decay parameter (\( \theta \)). While straightforward, this approach assumes a fixed decay rate, which may not capture the nuances of real-world advertising effects. Sadly, the literature on Geometric Adstock is relatively sparse and primarily rooted in older research. The concept of adstock and geometric decay stems from foundational studies in advertising and marketing econometrics dating back to the mid-to-late 20th century. These early works were largely focused on understanding advertising's carryover effects and used simple geometric decay due to its computational simplicity and ease of interpretation.
 
 2. **Weibull Adstock**: This more flexible approach uses the Weibull distribution to model decay, allowing for varying shapes of decay curves. While powerful, the additional parameters increase model complexity and susceptibility to overfitting, particularly in small samples.
 
