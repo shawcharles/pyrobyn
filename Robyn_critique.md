@@ -53,7 +53,7 @@ Robyn’s reliance on evolutionary algorithms, such as Nevergrad, for hyperparam
 
 Robyn prioritises predictive accuracy over causal interpretability, making it unsuitable for deriving robust causal insights. Temporal dependencies are inadequately addressed, and regularisation techniques distort coefficient estimates, further complicating causal interpretation. Endogeneity issues, such as omitted variable bias, are also unresolved, limiting the reliability of causal inferences drawn from the model.
 
-Is Robyn a good model? What, even, is a good model?
+## Is Robyn a good model? What, even, is a good model?
 
 A good model must satisfy two essential criteria: it must be theoretically sound and practically useful. Theoretical soundness ensures that the model adheres to established principles, provides reliable estimates, and is consistent with the underlying data-generating process. Practical usefulness, in the sense articulated by George Box, means the model must be "good enough" to yield actionable insights, even if it is an approximation of reality. These dual criteria establish a balance between rigour and utility, which is critical in applied domains like marketing econometrics.
 
